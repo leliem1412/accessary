@@ -1,0 +1,231 @@
+@extends('app')
+
+@section('css')
+    <style>
+        .block-container {
+            padding: 20px;
+            border: 1px solid #ccc;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .block-container .block-title {
+            font-size: 18px;
+            font-weight: 600;
+            padding: 10px;
+            position: relative;
+        }
+
+        .block-container .block-title::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(45deg, #1FA2FF, #12D8FA, #A6FF);
+        }
+        .table-filter-custom input,
+        .table-filter-custom select {
+            border: 1px solid #ccc;
+            outline: none;
+            width: 100%;
+            border-radius: 3px;
+            padding: 5px;
+        }
+
+        .table-filter-custom select {
+            font-weight: 300 !important;
+        }
+        .table-filter-custom .table-filter-custom-action {
+            display: flex;
+            flex-direction: row;
+            gap: 5px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .table-filter-custom .table-filter-custom-action i {
+            font-size: 18px;
+        }
+    </style>
+@endsection
+
+@section('content')
+    <div class="breakcrumb-container">
+        <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item active" aria-current="page">Nhân viên</li>
+            </ol>
+        </nav>
+
+        <div class="btn-breakcrumb-box">
+            <a href="{{ route('employee.create') }}" class="btn btn-primary pull-right">Thêm mới</a>
+        </div>
+   </div>
+
+    <div class="row">
+        <div class="col-md-12 col-md-offset-1">
+            <table class="table table-bordered table-responsive table-striped">
+                <thead>
+                   <tr>
+                    <th>#</th>
+                        <th>Mã nhân viên</th>
+                        <th>Tên nhân viên</th>
+                        <th>Email</th>
+                        <th>Vai trò</th>
+                        <th>Ngày tạo</th>
+                        <th>Ngày cập nhật</th>
+                   </tr>
+
+                   <tr class="table-filter-custom">
+                        <th class="table-filter-custom-action">
+                            <a href="#" class="table-filter-search-btn" data-bs-toggle="tooltip" data-bs-placement="top" title="Lọc">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </a>
+                            <a href="#" class="table-filter-remove-btn" data-bs-toggle="tooltip" data-bs-placement="top" title="Xoá lọc">
+                                <i class="fa-solid fa-eraser"></i>
+                            </a>
+                        </th>
+                        <th><input type="text" placeholder="Nhập mã nhân viên" name="employee_code"></th>
+                        <th><input type="text" placeholder="Nhập tên nhân viên" name="name"></th>
+                        <th><input type="text" placeholder="Nhập email" name="email"></th>
+                        <th>{!! App\Enums\Picklist::getPicklistView('user', 'Chọn vai trò', 'role') !!}</th>
+                        <th><input type="date" placeholder="Chọn ngày tạo" name="created_at"></th>
+                        <th><input type="date" placeholder="Chọn ngày cập nhật" name="updated_at"></th>
+                    </tr>
+                </thead>
+                <tbody id="employee_table_body">
+                    @if (count($entry_list) > 0)
+                        @foreach ($entry_list as $key => $entryData)
+                            <tr>
+                                <td>{{ ($entry_list->currentPage() - 1) * $entry_list->perPage() + $key + 1 }}</td>
+                                <td>{{ $entryData['employee_code'] }}</td>
+                                <td><a href="{{ route('employee.detail', ['id' => Illuminate\Support\Facades\Crypt::encrypt($entryData['id'])]) }}">{{ $entryData['name'] }}</a></td>
+                                <td>{{ $entryData['email'] }}</td>
+                                <td>{{ App\Enums\Picklist::getPicklistValue('employee', 'role', $entryData['role']) }}</td>
+                                <td>{{ date('d/m/Y H:i', strtotime($entryData['created_at'])) }}</td>
+                                <td>{{ date('d/m/Y H:i', strtotime($entryData['updated_at'])) }}</td>
+                            </tr>
+                        @endforeach
+                    @else
+                        <tr>
+                            <td colspan="7" class="text-center">Không có dữ liệu</td>
+                        </tr>
+                    @endif
+                </tbody>
+            </table>
+
+
+            {{ $entry_list->links() }}
+        </div>
+    </div>
+@endsection
+
+@section('script')
+<script>
+    const Product_ListView_Js = new class {
+        constructor() {
+            this.handleSearchTableEvent();
+            this.handleRemoveFilterTableEvent();
+            this.loadCustomerFilterFormUrl();
+            this.handleChangePageEvent();
+        }
+
+        handleSearchTableEvent() {
+            $('.table-filter-search-btn').on('click', (e) => {
+                e.preventDefault();
+
+                const table = $(event.currentTarget).closest('table');
+                const employeeCode = table.find('input[name="employee_code"]').val();
+                const name = table.find('input[name="name"]').val();
+                const email = table.find('input[name="email"]').val();
+                const role = table.find('select[name="role"]').val();
+                const created_at = table.find('input[name="created_at"]').val();
+                const updated_at = table.find('input[name="updated_at"]').val();
+
+                const queryParams = {
+                    employee_code: employeeCode,
+                    name: name,
+                    email: email,
+                    role: role,
+                    created_at: created_at,
+                    updated_at: updated_at,
+                };
+
+                $.pjax({
+                    url: window.location.pathname + '?' + $.param(queryParams),
+                    container: '#employee_table_body',
+                    type: 'GET',
+                    push: true,
+                    replace: false,
+                    timeout: 3000
+                });
+
+            });
+        }
+
+        handleChangePageEvent() {
+            const queryParams = this.getQueryParams();
+            delete queryParams['page'];
+
+            $('.pagination a').on('click', (e) => {
+                e.preventDefault();
+                let url = $(event.currentTarget).attr('href');
+                if (Object.keys(queryParams).length > 0) url += '&' + $.param(queryParams);
+
+                $.pjax({
+                    url: url,
+                    container: '#employee_table_body',
+                    type: 'GET',
+                    push: true,
+                    timeout: 3000
+                });
+            });
+        }
+
+        handleRemoveFilterTableEvent() {
+            $('.table-filter-custom .table-filter-remove-btn').on('click', (e) => {
+                e.preventDefault();
+
+                $.pjax({
+                    url: window.location.pathname,
+                    container: '#employee_table_body',
+                    type: 'GET',
+                    push: true,
+                    replace: false,
+                    timeout: 3000
+                });
+            });
+        }
+
+        loadCustomerFilterFormUrl() {
+            const params = this.getQueryParams();
+
+            $(".table-filter-custom input, .table-filter-custom select").each(function () {
+                let name = $(this).attr("name");
+                if (params[name]) {
+                    $(this).val(params[name]).trigger("change");
+                }
+            });
+        }
+
+        getQueryParams() {
+            let params = {};
+            let search = window.location.search.substring(1);
+            if (search) {
+                search.split("&").forEach(function (part) {
+                    let [key, value] = part.split("=");
+                    if (key && value) {
+                        params[decodeURIComponent(key)] = decodeURIComponent(value.replace(/\+/g, " "));
+                    }
+                });
+            }
+            return params;
+        }
+    }
+</script>
+@endsection
